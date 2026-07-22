@@ -148,6 +148,14 @@ def send_text_to_chat(access_token, chat_id, text):
     })
 
 
+def send_via_webhook(webhook_url, text):
+    """通过群机器人 Webhook 向群内发送文本消息（群机器人专用发送通道）。"""
+    return _http_post_json(webhook_url, {
+        "msgtype": "text",
+        "text": {"content": text},
+    })
+
+
 def _http_get_json(url):
     with urllib.request.urlopen(urllib.request.Request(url), timeout=30) as r:
         return json.loads(r.read().decode("utf-8"))
