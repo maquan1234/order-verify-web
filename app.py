@@ -241,7 +241,13 @@ def download_result(download_id):
 def _wecom_reply(token, chat_id, text):
     try:
         import wecom_bot
-        wecom_bot.send_text_to_chat(token, chat_id, text)
+        wh = os.environ.get('WECOM_WEBHOOK_URL')
+        if wh:
+            # 群机器人模式：用 Webhook 把结果发回群（不受 5s 回调超时限制）
+            wecom_bot.send_via_webhook(wh, text)
+        else:
+            # 自建应用/智能助理模式：用 appchat/send 回群
+            wecom_bot.send_text_to_chat(token, chat_id, text)
     except Exception as e:
         print('[wecom] 回复失败:', e)
 
