@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
-"""电商审单核对Web应用 - Flask后端"""
+"""电商审单核对Web应用 - Flask后端（支持本地桌面打包 / 云部署）"""
 import os
+import sys
 import tempfile
 import time
+import socket
+import webbrowser
 from flask import Flask, request, jsonify, send_file, render_template
 from verifier import (
     load_products, save_products, init_products_from_xlsx, build_barcode_to_info,
@@ -10,28 +13,44 @@ from verifier import (
 )
 from openpyxl import load_workbook
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# ========== 路径解析（兼容 PyInstaller 打包后的 frozen 状态） ==========
+def _is_frozen():
+    """打包成 exe 后，sys.frozen 为 True，资源在 sys._MEIPASS 内"""
+    return getattr(sys, 'frozen', False)
 
-# 云部署时通过环境变量 DATA_DIR 指向持久化卷（如 Railway/Render 挂载的磁盘），
-# 保证货品数据与核对结果在实例重启后不丢失。本地运行时默认使用程序所在目录。
-DATA_DIR = os.environ.get('DATA_DIR', BASE_DIR)
+if _is_frozen():
+    # 打包后：模板/货品表等资源被解压到 sys._MEIPASS（只读，不可写）
+    RESOURCE_DIR = sys._MEIPASS
+    EXE_DIR = os.path.dirname(sys.executable)
+    # 数据目录放在用户 AppData，保证可写且持久（不同机器各自保存货品数据）
+    APPDATA = os.environ.get('APPDATA', EXE_DIR)
+    DATA_DIR = os.path.join(APPDATA, 'OrderVerify')
+else:
+    RESOURCE_DIR = os.path.dirname(os.path.abspath(__file__))
+    EXE_DIR = RESOURCE_DIR
+    # 云部署 / 开发：DATA_DIR 可用环境变量覆盖（指向持久卷）
+    DATA_DIR = os.environ.get('DATA_DIR', RESOURCE_DIR)
+
 os.makedirs(DATA_DIR, exist_ok=True)
 
 PRODUCTS_JSON = os.path.join(DATA_DIR, 'products.json')
-# 桌面货品表仅作为本地首次初始化的可选来源，云端不存在时自动忽略
-PRODUCTS_XLSX = os.environ.get('PRODUCTS_XLSX', r'C:\Users\EDY\Desktop\货品信息表.xlsx')
+# 打包后不再依赖桌面文件；如需指定本地货品表可用环境变量 PRODUCTS_XLSX 覆盖
+PRODUCTS_XLSX = os.environ.get('PRODUCTS_XLSX', '')
 OUTPUT_DIR = os.path.join(DATA_DIR, 'outputs')
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-app = Flask(__name__, static_folder='static', template_folder='templates')
+# 模板与静态资源：打包后从 RESOURCE_DIR 读取（_MEIPASS 内已包含）
+template_folder = os.path.join(RESOURCE_DIR, 'templates')
+static_folder = os.path.join(RESOURCE_DIR, 'static') if os.path.isdir(os.path.join(RESOURCE_DIR, 'static')) else None
+app = Flask(__name__, template_folder=template_folder, static_folder=static_folder)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max upload
 
 # ========== 初始化货品信息 ==========
 def ensure_products():
     if not os.path.exists(PRODUCTS_JSON):
-        # 首次部署：若持久卷为空，但代码仓库内自带 products.json（含初始货品），则种子化过去
-        seed = os.path.join(BASE_DIR, 'products.json')
-        if DATA_DIR != BASE_DIR and os.path.exists(seed):
+        # 首次运行：若数据目录为空，但程序自带 products.json（含初始货品），则种子化过去
+        seed = os.path.join(RESOURCE_DIR, 'products.json')
+        if _is_frozen() and os.path.exists(seed):
             import shutil
             shutil.copyfile(seed, PRODUCTS_JSON)
         elif os.path.exists(PRODUCTS_XLSX):
@@ -218,6 +237,24 @@ def download_result(download_id):
         return jsonify({'error': '文件不存在'}), 404
     return send_file(path, as_attachment=True, download_name=f'销售单核对结果_{download_id}')
 
+def _find_free_port(preferred=5000):
+    """找到一个可用端口，避免与其他程序冲突"""
+    for p in range(preferred, preferred + 100):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            if s.connect_ex(('127.0.0.1', p)) != 0:
+                return p
+    return preferred
+
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    import threading
+    host = '127.0.0.1'
+    port = _find_free_port(int(os.environ.get('PORT', 5000)))
+    url = f'http://{host}:{port}/'
+    # 启动后自动打开默认浏览器
+    threading.Timer(1.5, lambda: webbrowser.open(url)).start()
+    print('=' * 52)
+    print('   电商审单核对工具 已启动')
+    print(f'   请在浏览器中访问：{url}')
+    print('   本程序仅在本机运行，关闭此窗口即停止服务')
+    print('=' * 52)
+    app.run(host=host, port=port, debug=False)
