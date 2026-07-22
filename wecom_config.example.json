@@ -1,0 +1,12 @@
+{
+  "_说明": "本文件仅为示例。真正运行时不读这个 json，而是用环境变量传入（见 企微机器人配置说明.md）。",
+  "WECOM_ENABLED": "1",
+  "WECOM_CORPID": "企业ID(我的企业->企业信息->企业ID)",
+  "WECOM_SECRET": "自建应用 Secret(应用管理->对应应用->Secret)",
+  "WECOM_AGENTID": "自建应用 AgentId",
+  "WECOM_TOKEN": "接收消息->设置 API 接收 时填的 Token",
+  "WECOM_AES_KEY": "接收消息->设置 API 接收 时填的 EncodingAESKey(43字符)",
+  "PUBLIC_BASE_URL": "https://你的固定公网地址(如 https://xxx.render.com 或 cloudflared 保留隧道地址)",
+  "WECOM_VERIFY_FILENAME": "WW_verify_xxxxxxxxxx.txt",
+  "WECOM_VERIFY_CONTENT": "企业微信后台「可信域名」处给的校验文件内容"
+}
