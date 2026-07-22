@@ -360,14 +360,20 @@ def _find_free_port(preferred=5000):
 
 if __name__ == '__main__':
     import threading
-    host = '127.0.0.1'
+    host = os.environ.get('HOST', '0.0.0.0')  # 云部署需监听 0.0.0.0；本机双击默认也是 0.0.0.0（localhost 仍可访问）
     port = _find_free_port(int(os.environ.get('PORT', 5000)))
-    url = f'http://{host}:{port}/'
-    # 启动后自动打开默认浏览器
-    threading.Timer(1.5, lambda: webbrowser.open(url)).start()
+    bind_host = '127.0.0.1' if host == '0.0.0.0' else host
+    url = f'http://{bind_host}:{port}/'
+    # 启动后自动打开默认浏览器（云端无界面，失败静默忽略）
+    def _open_browser():
+        try:
+            webbrowser.open(url)
+        except Exception:
+            pass
+    threading.Timer(1.5, _open_browser).start()
     print('=' * 52)
     print('   电商审单核对工具 已启动')
     print(f'   请在浏览器中访问：{url}')
-    print('   本程序仅在本机运行，关闭此窗口即停止服务')
+    print('   本程序仅在本机运行，关闭此窗口即停止服务' if host == '127.0.0.1' else '   云部署模式：由平台分配公网地址')
     print('=' * 52)
     app.run(host=host, port=port, debug=False)
