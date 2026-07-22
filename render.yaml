@@ -1,5 +1,5 @@
 # Render 一键部署配置
-# 部署后到 Render 后台 Environment 填入下面 7 个环境变量（sync:false = 不随仓库，需手动在后台粘贴）
+# 部署后到 Render 后台 Environment 填入下面 8 个环境变量（sync:false = 不随仓库，需手动在后台粘贴）
 services:
   - type: web
     name: order-verify-web
@@ -24,6 +24,8 @@ services:
       - key: WECOM_TOKEN
         sync: false
       - key: WECOM_AES_KEY
+        sync: false
+      - key: WECOM_WEBHOOK_URL
         sync: false
       - key: PUBLIC_BASE_URL
         sync: false
