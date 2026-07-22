@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# 本地运行产物（不应进入仓库）
+outputs/
+tunnel.log
+current_url.txt
+
+# 环境变量 / 密钥
+.env
+
+# 二进制 / 日志 / 临时调试脚本（非部署所需）
+cloudflared.exe
+*.log
+inspect_files*.py
